@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fazbear Security Database</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Share+Tech+Mono&family=Inter:wght@400;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-color: #08090c;
+            --card-bg: rgba(15, 20, 28, 0.85);
+            --card-border: #1a2332;
+            --text-main: #d0d7de;
+            --text-muted: #7d8590;
+            --accent-red: #ff2a2a;
+            --accent-green: #00ff88;
+            --accent-yellow: #ffb700;
+            --accent-purple: #9d4edd;
+            --glow-red: rgba(255, 42, 42, 0.35);
+            --glow-green: rgba(0, 255, 136, 0.25);
+        }
+
+        .notes {
+            border: 1px solid #232d3f;
+            background: #0e131d;
+            color: white;
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            padding: 0.5rem;
+
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 50% 0%, rgba(255, 42, 42, 0.08), transparent 70%),
+                linear-gradient(to bottom, #050608, #0a0d14);
+        }
+
+        /* CRT Overlay Effect */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%,
+                    rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 99;
+            opacity: 0.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 5rem;
+        }
+
+        /* Header Styling */
+        header {
+            border-bottom: 2px solid #1a233a;
+            padding-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .status-badge {
+            display: inline-block;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid var(--accent-green);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 0 10px var(--glow-green);
+        }
+
+        h1 {
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #fff;
+            text-shadow: 0 0 15px var(--glow-red);
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.95rem;
+        }
+
+        /* Controls (Search + Filters) */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+            background: rgba(12, 16, 24, 0.9);
+            padding: 1.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+
+        .search-input {
+            width: 100%;
+            background: #06080c;
+            border: 1px solid #232d3f;
+            color: #fff;
+            padding: 0.85rem 1.25rem;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1rem;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 10px var(--glow-red);
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            background: #0e131d;
+            border: 1px solid #232d3f;
+            color: var(--text-muted);
+            font-family: 'Chakra Petch', sans-serif;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            transition: all 0.2s ease;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: var(--accent-red);
+            color: #fff;
+            border-color: var(--accent-red);
+            box-shadow: 0 0 10px var(--glow-red);
+        }
+
+        /* Long List Layout */
+        .animatronic-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Individual Card */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-left: 4px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            position: relative;
+            backdrop-filter: blur(5px);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        @media (min-width: 800px) {
+            .card {
+                grid-template-columns: 280px 1fr;
+            }
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: #313e56;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Threat Color Coding Left Borders */
+        .card[data-threat="5"] {
+            border-left-color: var(--accent-red);
+        }
+
+        .card[data-threat="4"] {
+            border-left-color: #ff5500;
+        }
+
+        .card[data-threat="3"] {
+            border-left-color: var(--accent-yellow);
+        }
+
+        .card[data-threat="2"] {
+            border-left-color: var(--accent-green);
+        }
+
+        .card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            border-bottom: 1px solid #1a2332;
+            padding-bottom: 1rem;
+        }
+
+        @media (min-width: 800px) {
+            .card-meta {
+                border-bottom: none;
+                border-right: 1px solid #1a2332;
+                padding-bottom: 0;
+                padding-right: 1.25rem;
+            }
+        }
+
+        .card-title {
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .tag {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            text-transform: uppercase;
+            background: #141b26;
+            color: var(--text-muted);
+            border: 1px solid #232d3f;
+        }
+
+        .tag.gen {
+            background: rgba(157, 78, 221, 0.15);
+            border-color: var(--accent-purple);
+            color: #d8b4fe;
+        }
+
+        /* Threat Meter */
+        .threat-box {
+            margin-top: auto;
+        }
+
+        .threat-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+        }
+
+        .threat-meter {
+            display: flex;
+            gap: 4px;
+        }
+
+        .threat-pip {
+            height: 8px;
+            flex: 1;
+            background: #18202c;
+            border-radius: 2px;
+        }
+
+        .card[data-threat="5"] .threat-pip:nth-child(-n+5) {
+            background: var(--accent-red);
+            box-shadow: 0 0 6px var(--glow-red);
+        }
+
+        .card[data-threat="4"] .threat-pip:nth-child(-n+4) {
+            background: #ff5500;
+        }
+
+        .card[data-threat="3"] .threat-pip:nth-child(-n+3) {
+            background: var(--accent-yellow);
+        }
+
+        .card[data-threat="2"] .threat-pip:nth-child(-n+2) {
+            background: var(--accent-green);
+        }
+
+        /* Content Area */
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .info-row {
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .info-label {
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        .survival-tip {
+            background: rgba(255, 42, 42, 0.05);
+            border: 1px dashed rgba(255, 42, 42, 0.3);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            color: #ff9999;
+            font-size: 0.9rem;
+        }
+
+        .empty-msg {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-muted);
+            font-family: 'Share Tech Mono', monospace;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="scanlines"></div>
+
+    <div class="container">
+        <header>
+            <div class="status-badge">● Security Terminal Active</div>
+            <h1>Animatronic Repository</h1>
+            <p class="subtitle">CLASSIFIED FAZBEAR ENTERTAINMENT DATABASE — CLEARANCE LEVEL 4</p>
+        </header>
+
+        <div class="controls">
+            <input type="text" id="searchInput" class="search-input"
+                placeholder="SEARCH DATABASE BY NAME OR MECHANIC..." />
+            <div class="filters">
+                <button class="filter-btn active" data-filter="all">All Units</button>
+                <button class="filter-btn" data-filter="Classic">Classics</button>
+                <button class="filter-btn" data-filter="Toy">Toys</button>
+                <button class="filter-btn" data-filter="Withered">Withered</button>
+                <button class="filter-btn" data-filter="Nightmare">Nightmares</button>
+                <button class="filter-btn" data-filter="Funtime">Funtimes</button>
+                <button class="filter-btn" data-filter="Glamrock">Glamrocks</button>
+            </div>
+        </div>
+
+        <main class="animatronic-list" id="animatronicList">
+
+            <!-- Freddy Fazbear -->
+            <article class="card" data-gen="Classic" data-threat="4" data-jumpscare-sound="sounds/freddy.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTlDNv9jUqZTpJ9BRVNAYM2Q5q7cetpSm-vM4UvfkgtKj8I_NnDCffmvncN2ZvBUw27cz-SkmT2vzeVmwizk5RVlms3RNDfOn9xGM8LpLLw&s=10">
+                    <h2 class="card-title">Freddy Fazbear</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Classic</span>
+                        <span class="tag">FNAF 1</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 4 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Stalks the night from the East Hall. Stays mostly in dark zones and becomes significantly more
+                        aggressive when power runs out or on later nights.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Keep direct camera focus on him (CAM 4B) to stall his movement. Never close the right door
+                        unless you hear his deep laugh approaching.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+
+                </div>
+            </article>
+
+            <!-- Bonnie -->
+            <article class="card" data-gen="Classic" data-threat="3" data-jumpscare-sound="sounds/bonnie.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQCSVEWDBFi5YVu_EKfx3LzdQsbJ8Bw4FL1fyRVhvH1Ng&s=10">
+                    <h2 class="card-title">Bonnie</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Classic</span>
+                        <span class="tag">FNAF 1</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 3 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Primary left-flank attacker. Moves rapidly across the West Hall and ignores conventional camera
+                        progression paths.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Check the left door blindspot light frequently. If his shadow/head is visible at the window,
+                        slam the left door immediately.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+           
+                </div>
+            </article>
+
+            <!-- Chica -->
+            <article class="card" data-gen="Classic" data-threat="3" data-jumpscare-sound="sounds/chica.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQrwe7WpZzSdQxEo_UB8sUUkUNlsQudMJj89Y2a4-kEKg&s=10">
+                    <h2 class="card-title">Chica</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Classic</span>
+                        <span class="tag">FNAF 1</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 3 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Right-side pathfinder. Known for lingering in the Kitchen, making heavy metallic clattering
+                        sounds while handling pots and pans.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Listen for kitchen noise to track her location without line of sight. Check the right door light
+                        continuously.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Foxy -->
+            <article class="card" data-gen="Classic" data-threat="5" data-jumpscare-sound="sounds/foxy.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFdqy3wtYiBGMOodzVeC0Wp-0XFWF9MfmztMNA_gK2qw&s=10">
+                    <h2 class="card-title">Foxy the Pirate</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Classic</span>
+                        <span class="tag">FNAF 1</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 5 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Housed in Pirate Cove (CAM 1C). Progresses through 4 stages before sprinting down the West Hall
+                        directly to the office.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Monitor Pirate Cove regularly. If the curtains are wide open and the cove is empty, close the
+                        left door within 2 seconds.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- The Puppet -->
+            <article class="card" data-gen="Toy" data-threat="5" data-jumpscare-sound="sounds/puppet.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQyNf5ezcL7-8FlWaa9zogB15O3uP7t78hQ1pKTWCs3hg&s=10">
+                    <h2 class="card-title">The Puppet / Marionette</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Toy</span>
+                        <span class="tag">FNAF 2</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 5 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Resides in the Prize Corner music box. Ignores the Freddy mask completely once released.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Wind the Music Box on CAM 11 non-stop. If "Pop Goes the Weasel" begins playing, death is
+                        inevitable.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Mangle -->
+            <article class="card" data-gen="Toy" data-threat="4" data-jumpscare-sound="sounds/mangle.mp3">
+                <div class="card-meta">
+                    <img
+                        src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS8eAwhO-S_UTSTEMXvoZ88BAFZicm_i6OD5iHlnimwVA&s">
+                    <h2 class="card-title">Mangle</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Toy</span>
+                        <span class="tag">FNAF 2</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 4 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Heavily dissembled animatronic that crawls along ceiling beams. Emits loud static radio feedback
+                        when nearby.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        When radio static is heard in the Right Air Vent, put on the Freddy Mask immediately until the
+                        noise stops completely.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Withered Foxy -->
+            <article class="card" data-gen="Withered" data-threat="4" data-jumpscare-sound="sounds/wfoxy.mp3">
+                <div class="card-meta">
+                    <img src="https://static.wikia.nocookie.net/fivenightsatfreddys/images/b/b4/Withered_foxy.webp/revision/latest?cb=20260105111020"
+                        style="width:280px; height:250px; object-fit:cover; object-position:top;">
+                    <h2 class="card-title">Withered Foxy</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Withered</span>
+                        <span class="tag">FNAF 2</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 4 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Stands in the main hallway outside the office. Immune to the Freddy mask trick.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Flash your flashlight repeatedly into the hallway to reset his AI brain circuit.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Springtrap -->
+            <article class="card" data-gen="Classic" data-threat="5" data-jumpscare-sound="sounds/spingtap.mp3">
+                <div class="card-meta">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPSleBJYBJm7NtaVWGzNSSxmtLrFMWn9Y1XnNXXJc4nA&s=10"
+                        style="width:280px; height:400px; object-fit:cover; object-position:top;">
+                    <h2 class="card-title">Springtrap</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Classic</span>
+                        <span class="tag">FNAF 3</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 5 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        The sole physical animatronic in Fazbear's Fright. Contains the corpse of William Afton. Uses
+                        vents and camera blindspots.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Lure him into adjacent rooms using Audio Lures on the camera system. Seal vent ducts whenever he
+                        enters air shafts.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Nightmare Fredbear -->
+            <article class="card" data-gen="Nightmare" data-threat="5" data-jumpscare-sound="sounds/nfreddy.ogg">
+                <div class="card-meta">
+                    <img src="data:image/jpeg;base64,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"
+                        style="width:280px; height:400px; object-fit:cover; object-position:top;">
+                    <h2 class="card-title">Nightmare Fredbear</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Nightmare</span>
+                        <span class="tag">FNAF 4</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 5 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Massive, razor-clawed terror with stomach teeth. Can attack from both left and right doors, as
+                        well as the closet and bed.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Listen for heavy footsteps. If you hear deep laughter, check the Closet or Bed immediately.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Circus Baby -->
+            <article class="card" data-gen="Funtime" data-threat="4" data-jumpscare-sound="sounds/cbaby.mp3">
+                <div class="card-meta">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSxx1pkyxKiynETIcCC-SxVXZUhac-bgrc8p6UymUGoQg&s=10"
+                        style="width:280px; height:300px; object-fit:cover; object-position:top;">
+                    <h2 class="card-title">Circus Baby</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Funtime</span>
+                        <span class="tag">Sister Location</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 4 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Highly intelligent Funtime unit equipped with helium tanks, ice cream dispenser, and internal
+                        claw mechanism.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Follow her exact audio instructions during night procedures. Do not look directly into her
+                        optical sensors during repair sequences.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Glamrock Freddy -->
+            <article class="card" data-gen="Glamrock" data-threat="2" data-jumpscare-sound="sounds/glamfreddy.ogg">
+                <div class="card-meta">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQEFt48cTSObRkyuGr4BGu4zUx3gqaa9Rw8EFMAki68RA&s=10"
+                        style="width:280px; height:400px; object-fit:cover; object-position:centre;">
+                    <h2 class="card-title">Glamrock Freddy</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Glamrock</span>
+                        <span class="tag">Security Breach</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 2 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Protagonist ally. Equipped with a hatch in his torso designed to carry oversized birthday cakes,
+                        which can hide human children.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-green);">Ally Protocol</span>
+                        Climb inside his cake hatch to navigate the Mega Pizzaplex undetected. Upgrade his parts using
+                        salvaged components from shattered Glamrocks.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+            <!-- Roxanne Wolf -->
+            <article class="card" data-gen="Glamrock" data-threat="4" data-jumpscare-sound="sounds/roxy.ogg">
+                <div class="card-meta">
+                    <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRG9GlsZBmwQdMVSCjdh3p76L8vJsqpnnqAGdJCuxX2hQ&s=10"
+                        style="width:280px; height:350px; object-fit:cover; object-position:centre;">
+                    <h2 class="card-title">Roxanne Wolf</h2>
+                    <div class="tag-container">
+                        <span class="tag gen">Glamrock</span>
+                        <span class="tag">Security Breach</span>
+                    </div>
+                    <div class="threat-box">
+                        <div class="threat-label">Threat Level: 4 / 5</div>
+                        <div class="threat-meter">
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                            <div class="threat-pip"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Behavior Profile</span>
+                        Egotistical, high-speed hunter equipped with X-ray vision eyes capable of seeing through walls
+                        and obstacles.
+                    </div>
+                    <div class="survival-tip">
+                        <span class="info-label" style="color: var(--accent-red);">Survival Protocol</span>
+                        Hide behind opaque objects rather than light structures. Once decommissioned, her sound-based
+                        hunting relies heavily on auditory cues.
+                    </div>
+                    <textarea class="notes" placeholder="Personal notes..."></textarea>
+                </div>
+            </article>
+
+        </main>
+
+        <div class="empty-msg" id="emptyMsg">
+            [NO ANIMATRONIC DATA MATCHING SEARCH CRITERIA]
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const cards = document.querySelectorAll('.card');
+        const emptyMsg = document.getElementById('emptyMsg');
+
+        let currentFilter = 'all';
+
+        function filterCards() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                const content = card.querySelector('.card-content').textContent.toLowerCase();
+                const gen = card.getAttribute('data-gen');
+
+                const matchesFilter = (currentFilter === 'all') || (gen === currentFilter);
+                const matchesSearch = title.includes(searchTerm) || content.includes(searchTerm);
+
+                if (matchesFilter && matchesSearch) {
+                    card.style.display = 'grid';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            emptyMsg.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
+
+        searchInput.addEventListener('input', filterCards);
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.getAttribute('data-filter');
+                filterCards();
+            });
+        });
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const soundPath = card.dataset.jumpscareSound;
+
+                if (!soundPath) return;
+
+                const sound = new Audio(soundPath);
+                sound.play();
+            });
+            document.querySelectorAll('.notes').forEach(note => {
+                const name = note.closest('.card').querySelector('.card-title').textContent;
+
+                note.value = localStorage.getItem('note_' + name) || '';
+
+                note.addEventListener('input', () => {
+                    localStorage.setItem('note_' + name, note.value);
+                });
+
+                note.addEventListener('click', e => e.stopPropagation());
+            });
+        });
+    </script>
+</body>
+
+</html>
